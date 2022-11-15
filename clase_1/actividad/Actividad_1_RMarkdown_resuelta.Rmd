@@ -1,0 +1,88 @@
+---
+title: 'Actividad 1: Introducción a R Markdown'
+output:
+  html_document:
+    toc: true
+---
+
+## 1. Metadata
+Como su nombre lo indica es algo que está por fuera del contenido del documento. En este caso comenzamos con un encabezado muy sencillo donde definimos el título y nombre del archivo y el tipo de output como *HTML*.  
+-A) Agregar una tabla de contenidos.  
+*Es necesario declarar en el encabezado YAML que el tipo de documento es html con `html_document:` y dentro de ese output que `toc` (Table of Contents) tiene valor `TRUE`. Es fundamental la indentación!!*
+
+
+## 2. Setup general del código
+El primer chunk se usa para definir la configuración global del comportamiento de los chunks incluidos en el documento.
+En este ejemplo además cargamos algunas librerías de uso frecuente. 
+Como dijimos previamente es un buen hábito nombrar cada chunk, en este caso lo llamamos *setup*.  
+-B) ¿Cómo podemos prevenir que aparezcan los mensajes de *tidyverse*?  
+*Agregando la opción message=FALSE*  
+-C) ¿Qué pasa si cambiamos `include=TRUE` por `FALSE`?  
+*No se muestra nada del chunk, ni el código ni los mensajes*.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+library(tidyverse)
+```
+
+## 3. Importación de datos
+Por prolijidad podemos dejar reservado un chunk a la carga de las bases de datos que se van a utilizar.  
+-C) ¿Qué comportamiento controla `echo=TRUE`?  
+*`echo=TRUE` imprime el código del chunk. En este caso habíamos configurado globalmente `echo=FALSE`, por lo que sería lo mismo cambiarle el valor a `FALSE` o directamente borrarlo de las opciones de este chunk en particular*. 
+
+```{r carga datos}
+pacientes_muestra <- read.csv('../../datasets/pacientes_muestra.csv')
+efectores <- read.csv('../../datasets/efectores.csv')
+consultas_muestra <- read.csv('../../datasets/consultas_muestra.csv')
+```
+
+## 4. Incluyendo salidas
+
+### Tablas
+Dado el siguiente código:  
+-D) ¿Cómo podemos hacer para incluir en el reporte únicamente la tabla generada?  
+*Para suprimir el código tenemos que eliminar la opción `echo` o ponerle valor `FALSE`. Dado que a la tabla la guardamos como un objeto necesitamos llamarla en el chunk para que aparezca en el documento*.
+```{r tabla_comuna}
+tabla_departamento <- pacientes_muestra %>%
+  filter(str_detect(departamento,'comuna')) %>% 
+  count(departamento) %>%
+  arrange(desc(n))
+
+tabla_menos_fea <- tabla_departamento %>% 
+  rename(Personas=n,Comuna=departamento) %>% 
+  mutate(Comuna = parse_number(Comuna)) %>% 
+knitr::kable(caption = 'Total de pacientes registrados por comuna',padding=0)
+
+tabla_menos_fea
+```
+
+### Código en línea
+Podemos incluir variables en el texto de la siguiente manera:  
+Las comunas con mayor y menor cantidad de pacientes registrados son la `r tabla_departamento$departamento[tabla_departamento$n==max(tabla_departamento$n)]` y la  `r tabla_departamento$departamento[tabla_departamento$n==min(tabla_departamento$n)]`, respectivamente.   
+
+-E) Reportar el total de personas registradas por sexo.
+```{r}
+totales_sexo <- pacientes_muestra %>% 
+   count(genero)
+```
+
+*El total de hombres y mujeres registrados en el sistema es de `r totales_sexo$n[totales_sexo$genero=='M']` y `r totales_sexo$n[totales_sexo$genero=='F']` personas, respectivamente *
+
+## Mapas
+-F) ¿Cómo podemos subir de jerarquía la sección *Mapas*?  
+*Para eso es necesario utilizar dos ## en lugar de los tres que tenía originalmente*.
+
+Este es un ejemplo de mapa con leaflet  
+```{r mapa-AGISE, out.width='90%'}
+mapa_agise <- leaflet::leaflet() %>%
+  leaflet::addTiles() %>%
+  leaflet::setView(-58.421414, -34.606493,  zoom = 17) %>%
+  leaflet::addPopups(-58.421414, -34.606493,  'Usted está aquí: <b>AGISE</b>')
+mapa_agise
+```
+
+Nota: Si incluimos objetos dinámicos (htmlwidgets: mapas, gráficos interactivos) en un documento con formato estático (por ej. pdf), necesitamos otros paquetes que hacen una captura de pantalla para poder incluirla en el documento como una imagen.

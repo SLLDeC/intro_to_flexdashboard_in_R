@@ -1,0 +1,378 @@
+---
+title: "Clase 3: Gráficos interactivos con *highcharter*"
+author: Sabrina López
+date: 6 de septiembre de 2019
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---     
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+library(tidyverse)
+library(agiseR)
+```
+
+```{r highchart_tiempos_espanol, include=FALSE}
+lang <- getOption("highcharter.lang")
+lang$months <- c('Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre')
+lang$shortMonths <- c('Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic')
+lang$weekdays <- c('Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado')
+options(highcharter.lang = lang)
+```
+
+```{r carga datos}
+tablas <- c('pacientes_muestra','efectores','consultas_muestra')
+carga_reportes_csv(tablas,path='~/desarrollo_profesional/tableros/datasets')
+```
+
+## Introducción
+
+### Objetivos del taller
+- <del>Conocer el flujo de archivos en la generación de un documento a partir de *R Markdown*.</del>
+- <del>Generar un tablero: *flexdashboard*</del>
+- <del>Conocer diversas herramientas de visualización y presentación de datos:</del>
+- <del>Valores puntuales: *ValueBox*</del>
+- <span style="color:black">Gráficos dinámicos: *highcharter*</span>
+- Mapas: *leaflet*
+- Tablas dinámicas: *htmlwidgets*
+
+### Objetivo de la clase
+En el encuento de hoy vamos a aprender a hacer 3 tipos de gráficos con *highcharter*: gráfico de barras, pirámide poblacional y series temporales. El objetivo es conocer la potencialidad de esta herramienta durante el proceso de construcción de estos gráficos que son de los más usados en AGISE.
+
+### ¿Qué es *highcharter*?
+Highcharter es un paquete de R para crear gráficos dinámicos de Highcharts. Highcharts es una biblioteca de gráficos en javascript.
+Los objetos javascript 
+The previous code is a javascript object. It’s like a dictionary, or if we want we can say is like a named list. highcharter have the implementation of each option in highcharts like chart, title, etc. With each of them you can add the requiered parameters to get the chart what you want. First of all we need to create the highchart object and then add very option what we want.
+
+## Ejemplos
+### Gráfico de barras
+
+#### Objetivo
+Reportar la cantidad de personas empadronadas en CABA, por comuna de origen.
+
+#### Procedimiento
+Primero generamos un data frame que tiene el total de empadronados por comuna, ordenado de forma descendente: 
+
+```{r tabla_comunas}
+tabla_departamento <- pacientes_muestra %>%
+  filter(str_detect(departamento,'comuna')) %>% # Retenemos las personas georreferenciadas en CABA
+  count(departamento) %>%                       # Contabilizamos por comuna
+  arrange(desc(n))                              # Ordenamos de forma descendente
+tabla_departamento[1:5,]
+```
+
+Los pasos mínimos para generar un gráfico con *highcharter* son:  
+  1. Inicializarlo con la función `highchart()`  
+  2. Definir el tipo. Esto puede hacerse con la función `hc_chart` (o en las propiedades de cada una de las series con la función `hc_add_series`).  
+  3. Proporcionarle los datos a visualizar mediante `hc_add_series`.  
+
+```{r, echo=T }
+empadronados_comuna_plot <- highcharter::highchart() %>%                               # 1
+                            highcharter::hc_chart(type = "bar") %>%                    # 2
+                            highcharter::hc_add_series(data=tabla_departamento$n)      # 3
+```
+
+Si bien ya tenemos la base, para que el gráfico cumpla su objetivo tenemos que incorporar información mediante el uso de títulos, la correcta presentación de los ejes, etc.
+
+```{r, echo=T}
+empadronados_comuna_plot2 <- highcharter::highchart() %>% 
+                             highcharter::hc_chart(type = "bar") %>% 
+                             highcharter::hc_add_series(data=tabla_departamento$n,
+                                                        name='Personas empadronadas',
+                                                        showInLegend=FALSE) %>% 
+                             highcharter::hc_xAxis(categories = parse_number(tabla_departamento$departamento),
+                                                   title = list(text = "Comuna")) %>%
+                             highcharter::hc_yAxis(title = list(text = "Nro. de consultas")) %>% 
+                             highcharter::hc_title(text = "Cantidad de personas empadronadas por comuna",
+                                                   align='left') %>%
+                             highcharter::hc_subtitle(text = 'fuente: AGISE|UPE',
+                                                      align ='left') %>% 
+                             highcharter::hc_add_theme(highcharter::hc_theme_elementary())
+```
+
+  1) ¿Qué diferencias encuentran entre los dos gráficos?¿En qué parte del código se indican estos cambios?  
+*1. Serie 1 -> Personas empadronadas* con `hc_add_series(name='Personas empadronadas')`       
+*2. No aparece la leyenda* con `hc_add_series(showInLegend=FALSE)`  
+*3. Eje x: figuran los niveles de la variable categórica y el título 'Comuna'* con `hc_xAxis(categories = parse_number(tabla_departamento$departamento),title = list(text = "Comuna"))`  
+*4. Eje y: figura el título 'Nro. de consultas'* con `hc_yAxis(title = list(text = "Nro. de consultas"))`  
+*5. Se agrega un título* con `hc_title(text = "Cantidad de personas empadronadas por comuna",align ='left')`      
+*6. Se agrega un subtítulo* `hc_subtitle(text = 'fuente: AGISE|UPE',align ='left')`    
+*7. Se define un tema* con `hc_add_theme(highcharter::hc_theme_elementary())`
+
+  2) ¿Por qué algunas opciones están escritas como listas (`list=(...)`)?
+*Las opciones se escriben como listas cuando existen más opciones a definir para esa propiedad. Por ejemplo, para el título del eje y podemos pensar en subopciones como el tamaño de fuente, la orientación, etc. Básicamente, todas las opciones que figuren con {...} en la [Guía de referencia de Highcharts](https://api.highcharts.com/highcharts/) debemos escribirlas como listas.*
+
+```{r}
+manipulateWidget::combineWidgets(empadronados_comuna_plot,empadronados_comuna_plot2, ncol=2)
+```
+
+### Serie temporal
+#### Objetivo
+Visualizar la cantidad total de consultas en el tiempo  y el aporte de cada tipo de nivel de atención (APS y Hospitales).
+
+#### Procedimiento
+El primer paso es preparar los datos que queremos visualizar.
+Como en el eje x vamos a utilizar un dato temporal necesitamos generar un *timestamp* para cada fecha de forma de poder asignar cada consulta de manera unívoca. Esto nos permite hacer el seguimiento de un fenómeno y comparar registros de forma consistente. Para ello utilizamos la función `datetime_to_timestamp` del propio paquete *highcharter*. Después simplemente usamos la función `count` para contabilizar las consultas.
+
+```{r consultas_tiempo_efector-data, echo=T}
+consultas_tiempo <- consultas_muestra %>%
+  left_join(select(efectores,id_efector,abreviatura)) %>% # Sumamos el nombre del efector a la tabla de consulas
+  mutate(nivel = if_else(str_detect(abreviatura,'CESAC|CMB'),'APS','HOSP'), 
+         # Creamos la variable "nivel" para distinguir entre APS y Hospitales.
+         mes_ano_consulta_ts = highcharter::datetime_to_timestamp(zoo::as.Date(zoo::as.yearmon(fecha_consulta))))
+         # Creamos el timestamp de mes y año de la consulta.
+
+consultas_tiempo_total <- consultas_tiempo %>%    # Tabla de totales
+  count(mes_ano_consulta_ts)
+
+consultas_tiempo_efector <- consultas_tiempo %>%  # Tabla de consultas por nivel de atención
+  count(nivel,mes_ano_consulta_ts)
+```
+
+Inicializamos el gráfico con el total de consultas en el tiempo
+
+```{r consultas_tiempo_efector-plot}
+serie_temporal <- highcharter::highchart() %>% 
+                  highcharter::hc_chart(type = "line") %>%
+                  highcharter::hc_title(text = "Total de consultas por mes", align = 'left') %>% 
+                  highcharter::hc_subtitle(text = "fuente: AGISE|UPE HCE", align = 'left') %>% 
+                  highcharter::hc_xAxis(type='datetime',
+                                        labels=list(format='{value:%b-%Y}')) %>%
+                  highcharter::hc_yAxis(title = list(text = "Total de consultas")) %>% 
+                  highcharter::hc_plotOptions(line = list(dataLabels = list(enabled = F),
+                                          enableMouseTracking = TRUE)) %>%
+                  highcharter::hc_add_series(name = "Total",
+                                             data = consultas_tiempo_total %>%
+                                                    select(y=n,
+                                                           x=mes_ano_consulta_ts),
+                                              yAxis=0,
+                                              color='#FA8832',
+                                              lineWidth=3,
+                                              marker=list(enabled=FALSE))
+```
+
+```{r}
+serie_temporal
+```
+
+Para agregar las series de cada nivel tenemos que añadirlas con la función `hc_add_series`. En el caso de que sean muchas es conveniente automatizarlo mediante un `for loop`.
+
+```{r,echo=T}
+for(i in unique(consultas_tiempo_efector$nivel)){      #
+    consultas_filtrado <- consultas_tiempo_efector %>% # Me quedo sólo con los registros de ese nivel
+                          filter(nivel==i)
+   
+    serie_temporal <- serie_temporal %>%
+                      highcharter::hc_add_series(name=i,
+                                                 data=consultas_filtrado %>%
+                                                      select(x=mes_ano_consulta_ts,
+                                                             y=n),
+                                                 showInLegend=TRUE,   
+                                                 lineWidth=1,
+                                                 marker=list(enabled=TRUE,               
+                                                             radius=2))
+}
+serie_temporal
+```
+
+  3) ¿Cómo sabe que la serie que agrega es de tipo 'line'?  
+*Lo toma de `hc_chart(type = "line")` cuando ininicializamos el gráfico*
+
+  4) ¿Cómo podemos cambiar el ancho de la linea de APS y HOSP y agregarles marcadores?
+*hc_add_series(lineWidth=3,marker=list(enabled=FALSE,radius=2))*
+
+```{r}
+serie_temporal2 <- highcharter::highchart() %>% 
+  highcharter::hc_chart(type = "line") %>%
+  highcharter::hc_title(text = "Total de consultas por mes", align = 'left') %>% 
+  highcharter::hc_subtitle(text = "fuente: AGISE|UPE HCE", align = 'left') %>% 
+  highcharter::hc_xAxis(type='datetime',
+                        labels=list(format='{value:%b-%Y}')) %>%
+  highcharter::hc_yAxis(title = list(text = "Total de consultas")) %>% 
+  highcharter::hc_plotOptions(line = list(dataLabels = list(enabled = F),
+                                          enableMouseTracking = TRUE)) %>%
+  highcharter::hc_add_series(name = "Total",
+                             data = consultas_tiempo_total %>%
+                                    select(y=n,
+                                          x=mes_ano_consulta_ts),
+                  yAxis=0,
+                  color='#FA8832',
+                  lineWidth=3,
+                  marker=list(enabled=FALSE))
+```
+
+Para poder evaluar el aporte de cada nivel de forma más rápida, nos conviene utilizar columnas apiladas:
+
+```{r, echo=T}
+for(i in unique(consultas_tiempo_efector$nivel)){
+    consultas_filtrado <- consultas_tiempo_efector %>%
+        filter(nivel==i)
+   
+    serie_temporal2 <- serie_temporal2 %>%
+                       highcharter::hc_add_series(type='column',
+                                                  stacking = 'normal',
+                                                  name=i,
+                                                  data=consultas_filtrado %>%
+                                                       select(x=mes_ano_consulta_ts,
+                                                              y=n),
+                                                  showInLegend=TRUE)
+}
+```
+
+```{r}
+serie_temporal2
+```
+
+Sin embargo, para poder comparar los valores en una cierta fecha es necesario manipular el *tooltip*.
+```{r tooltip, echo=T}
+serie_temporal2 <- serie_temporal2 %>% 
+                   highcharter::hc_tooltip(crosshairs = TRUE,            
+                                           backgroundColor = "#FFFFFF",
+                                           shared = TRUE,                 
+                                           borderWidth = 3,
+                                           sort = TRUE,                    
+                                           table = TRUE)                  
+```
+
+  5) ¿Qué comportamiento controlan `crosshairs = TRUE` y `table = TRUE,` en `hc_tooltip()`?  
+*`crosshairs=TRUE` incorpora una linea vertical para un dado valor de x*
+*`table=TRUE` controla el alineamiento de los valores del tooltip*
+
+  6) ¿Cómo podemos cambiar el idioma de los meses?  
+*Para cambiar el idioma de ciertas opciones como las fechas o el menú de exportación tenemos que setearlo globalmente, ya que no es posible hacerlo para cada gráfico en particular. Esto se hace a travás de `options(highcharter.lang = lang)` donde en la variable `lang` definimos los nombres personalizados de la siguiente manera*
+
+```{r}
+lang <- getOption("highcharter.lang")
+lang$months <- c('Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre')
+lang$shortMonths <- c('Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic')
+lang$weekdays <- c('Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado')
+options(highcharter.lang = lang)
+```
+
+### Pirámide Poblacional
+#### Objetivo
+Representar la estructura de sexo y edad de los pacientes empadronados con domicilio en CABA.
+
+#### Procedimiento
+Podemos pensar a una pirámide poblacional como dos gráficos de barras enfrentados por su eje x. Con esta concepción generamos una tabla donde los varones tienen valores negativos y las mujeres positivos para ubicarlos a la izquierda y derecha respectivamente, respondiendo a la convención.
+
+```{r piramide_poblacional-data}
+
+edad_cat_cat <- c('90-100','85-89','80-84','75-79','70-74','65-69','60-64','55-59','50-54','45-49','40-44','35-39','30-34','25-29','20-24','15-19','10-14','5-9','0-4')
+
+poblacion <- pacientes_muestra %>% 
+             filter(str_detect(departamento,'comuna')) %>% 
+             mutate(edad = round(as.numeric(Sys.Date()- fecha_nacimiento)/365.25,2),
+                    edad_cat_order = cut(edad,
+                                         breaks = c(seq(0,90,5),100),
+                                         include.lowest = T,
+                                         labels = rev(edad_cat_cat))) %>%
+             count(edad_cat_order,genero) %>%
+             na.omit() %>% 
+             spread(genero,n,sep='_') %>% 
+             mutate(genero_M=genero_M*(-1)) %>% 
+             arrange(desc(edad_cat_order))
+```
+
+```{r}
+poblacion[1:5,]
+```
+
+
+```{r piramide_poblacional-plot, echo=T}
+piramide <- highcharter::highchart() %>%
+            highcharter::hc_chart(type = "bar") %>%
+            highcharter::hc_plotOptions(bar=list(stacking='normal')) %>%
+            highcharter::hc_title(text = "Población empadronada en CABA",
+                                  align='left',
+                                  style=list(fontSize= "16px")) %>%
+            highcharter::hc_subtitle(text = paste0("Total Varones: ",abs(sum(poblacion$genero_M))," | Total Mujeres:",sum(poblacion$genero_F)),
+                                     align='left',
+                                     style=list(fontSize= "16px")) %>%
+            highcharter::hc_xAxis(categories=unique(poblacion$edad_cat_order),
+                                  title = list(text = "Edad")) %>%
+            highcharter::hc_yAxis(title=list(text= 'Cantidad de personas'),
+                                  labels=list(formatter=highcharter::JS("function () {
+                                                              return Math.abs(this.value)}"))) %>%
+            highcharter::hc_add_series(data = poblacion$genero_F,
+                                       name = "Mujeres",
+                                       color='#fcb783', #fcc69c
+                                       legendIndex=2) %>%
+            highcharter::hc_add_series(data = poblacion$genero_M,
+                                       name = "Varones",
+                                       color='#fa8832', #'#41b5e9',
+                                       legendIndex=1) %>%
+            highcharter::hc_tooltip(crosshairs = TRUE,
+                                    borderWidth = 5,
+                                    formatter=highcharter::JS("function () {
+                                                    return 'Edad: ' + '<b>' + this.x + '</b><br/>' +
+                                                    this.series.name + ': ' + '<b>' + Math.abs(this.y) + '</b>'}")) %>%
+            highcharter::hc_legend(verticalAlign='top',
+                                   floating= F) %>%
+            highcharter::hc_add_theme(highcharter::hc_theme_elementary())
+```
+ 
+```{r}
+piramide
+```
+
+También podemos permitir la exportación de los datos:
+
+```{r, echo=T}
+piramide <- piramide %>% 
+            highcharter::hc_exporting(enabled=T,filename = "serie_temporal")
+```
+
+```{r}
+piramide
+```
+
+Para personalizar el menú de exportación, podemos pedirle prestado a Tommy su código ;)
+
+```{r menu_tommy, echo=T}
+export_full <- list(
+  list(text="Imagen JPEG",
+       onclick=highcharter::JS("function () { this.exportChart({ type: 'image/jpeg' }); }")),
+  list(text="Documento PDF",
+       onclick=highcharter::JS("function () { this.exportChart({ type: 'application/pdf' }); }")),
+  list(separator=TRUE),
+  list(text="Archivo CSV",
+       onclick=highcharter::JS("function () { this.downloadCSV(); }")),
+  list(text="Archivo XLS",
+       onclick=highcharter::JS("function () { this.downloadXLS(); }")))
+```
+
+Así como hay ciertas funciones que tenemos que escribir en javascript, todo lo relacionado con el formato de los textos es mediante HTML.
+A modo de ejemplo, tomamos el subtítulo de la pirámide poblacional y lo ponemos de color rojo.
+```{r}
+subtitulo <- paste0('<span style="color:red">Total Varones: ',abs(sum(poblacion$genero_M))," | Total Mujeres:",sum(poblacion$genero_F),'</span>')
+```
+
+```{r, echo=T}
+piramide <- piramide %>% 
+            highcharter::hc_exporting(enabled=T,
+                                      buttons=list(contextButton=list(text="Descargar", 
+                                                                      theme=list(fill="transparent"),
+                                                                      menuItems=export_full)),
+                                      filename = "piramide") %>% 
+            highcharter::hc_subtitle(text = subtitulo)
+```
+
+Y voilà!
+```{r}
+piramide
+```
+
+  7)¿Qué pasa si antes de exportar los datos deseleccionamos la serie 'Varones'?  
+*El menú de exportación sólo incluye los valores que se muestran en ese momento en el gráfico. Al mismo tiempo, hay que controlar que los nombres de las series y variables sean los apropiados*
+
+## Bibliografía y recursos
+- [Página oficial del paquete highcharter](http://jkunst.com/highcharter/)
+- [Guía de referencia de Highcharts](https://api.highcharts.com/highcharts/)
+- [Opciones de gráficos en diferentes lenguajes](https://stackoverflow.com/questions/7419358/highcharts-datetime-localization)

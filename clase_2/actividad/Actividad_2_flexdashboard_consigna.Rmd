@@ -1,0 +1,28 @@
+---
+title: 'Actividad 2: Introducción a flexdashboard'
+author: "Sabrina López"
+date: "30 de Agosto de 2019"
+output: html_document
+---
+
+## Consignas
+
+1. Ponerle un título al tablero.
+
+2. Cambiarle el tema.
+
+3. Reorganizar los objetos (mapa, pirámide poblacional y tabla), para mejorar la visualización.
+
+4. Asignarles un título adecuado.
+
+5. Agregar un página llamada "Consultas" que en la barra de navegación se desdoble en "CeSACs" y "Hospitales".
+
+6. Agregar un gráfico (*disponible en el chunck consultas_en_el_tiempo*) de cantidad de consultas en el tiempo para cada tipo de efector. 
+
+7. Agregar un gráfico (*disponible en el chunck consultas_por_efector*) donde se muestren consultas por efector bajo la pestaña "Por efector".
+
+8. Agregar un link en la barra de navegación a mesa de ayuda.
+
+9. Agregar un *value box* que cambie su color e ícono cuando el porcentaje de pacientes empadronados (*valor disponible en el chunck origen_pacientes*) con domicilio en CABA es menor al 85%.
+
+

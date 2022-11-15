@@ -1,0 +1,135 @@
+---
+title: 'Clase 1: Introducción a R Markdown'
+author: "Sabrina López"
+date: "23 de Agosto de 2019"
+output:
+  ioslides_presentation:
+    # keep_md: true
+    logo: ../imagenes/logo_AGISE2.png
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Presentación del taller
+Aclaraciones
+
+>- Subjetivo.
+>- Introductorio.
+>- Perfectible.
+>- Colaborativo.
+
+## Objetivos del taller
+- Conocer el flujo de archivos en la generación de un documento a partir de *R Markdown*.
+- Generar un tablero: *flexdashboard*
+- Conocer diversas herramientas de visualización y presentación de datos:  
+    - Valores puntuales: *ValueBox*
+    - Mapas: *leaflet*
+    - Gráficos dinámicos: *highcharter*
+    - Tablas dinámicas: *htmlwidgets*
+    
+## Objetivos de la clase
+- Conocer el flujo de trabajo en la generación de un documento a partir de R Markdown.
+    - ¿Qué es Markdown? Breve introducción al *markup language*.
+    - ¿Qué tipo y formatos de documentos puedo producir?
+    - ¿Por qué trabajar con R Markdown?
+- Conocer los elementos básicos de un documento *.Rmd*.
+- Generar un primer documento.
+
+## ¿Qué es un documento Markdown? | Introducción al *markup language*
+El *markup language* (lenguaje de marcado), es un sistema para codificar un documento de manera tal de que a través de etiquetas (o marcas), se determina la estructura o presentación del texto.  
+Algunos tipos de ML de los que tal vez han oído son: *HTML*, *YAML*, *TeX*.  
+Markdown tiene la ventaja de ser uno de los más amigables para la lectura. Por ejemplo, a continuación se muestran dos listados de los CeSAC del AP Argerich en Markdwon y en HTML.
+
+~~~~
+                  <ul>
+* CeSAC 9            <li>CeSAC 9</li>
+* CeSAC 15           <li>CeSAC 15</li>
+* CeSAC 41           <li>CeSAC 41</li>
+                  </ul>
+~~~~
+
+## Flujo de trabajo
+<center>
+![](~/ownCloud/agise/proyectos/curso_tableros/clases/figuras/index.jpeg)
+</center>
+
+1. Archivo R Markdown (.Rmd) de texto plano que contiene un encabezado *YAML* (metadata), texto Markdown y chunks de código.
+2. El paquete *knitr* renderea ese archivo a uno de Markdown puro (.md). En el proceso, corre todo los chunks y agrega su salida al archivo.
+3. El archivo Markdown (.md) es convertido por Pandoc en alguno de los formatos elegidos (HTML, PDF, Word, etc). En el caso de los PDF, Pandoc primero genera un .tex que luego es convertido en PDF por LaTeX.
+Todo el proceso es automático y podemos seguirlo en la consola. 
+
+## ¿Por qué trabajar con R Markdown? 
+Además de su versatilidad resulta una herramienta fundamental para lograr  
+
+<center><span style="color:green"> Reproducibilidad  </span></center><br>  
+
+No sólo ganamos consistencia sino que optimizamos el proceso!
+
+
+Dramatización (dura 1'44): [“A reproducible workflow” ](https://www.youtube.com/watch?v=s3JldKoA0zw) por Ignasi Bartomeus and Francisco Rodríguez-Sánchez
+
+## Elementos básicos de un archivo *.Rmd* 
+- **Metadata**: Contiene información acerca del documento y la forma en que se pretende que sea leído (preámbulo). Se escribe entre un par de tres guiones `---` con sintaxis YAML y es <span style="color:red">**MUY**</span> importante la indentación, que suele ser una fuente de dolores de cabeza!  
+
+`---` <br>
+`title: 'Clase 1: Introducción a R Markdown'`<br>
+`author: Sabrina López`<br>
+`date: 23 de Agosto de 2019`<br>
+`output:`<br/>
+<p style="margin-left: 30px">`ioslides_presentation:`<br>
+&nbsp;&nbsp;&nbsp;&nbsp;`logo: Logotipo AGISE.png`</p>
+`---`
+
+## Elementos básicos de un archivo *.Rmd* 
+- **Metadata**.
+- **Texto** con formato **Markdown**: es la narrativa que acompaña al código.  
+<center>
+![Algunos comandos](~/ownCloud/agise/proyectos/curso_tableros/clases/figuras/textoMD.png)</center>
+
+## Elementos básicos de un archivo *.Rmd* 
+- **Metadata**.
+- **Texto Markdown**. 
+- El **Código** puede aparecer de dos maneras: 
+    - En bloque, se lo demonina *chunk*
+    - En línea con el texto.
+    
+## Elementos básicos de un archivo *.Rmd*  
+Un *chunk* es un bloque delimitado por un par de tres tildes. Entre llaves se indican el lenguaje (R, Python, SQL, etc.) y opciones del chunk. 
+````
+```{r, eval=TRUE}`r ''`
+X = 198 + 1
+```
+````
+Es un bloque de código de R que crea la variable *X*. 
+
+## Elementos básicos de un archivo *.Rmd* 
+- Los *chunks* se pueden generar con la secuencia Ctrl+Alt+i o mediante el uso de 3 tildes ```` ```{r}``` ````.
+- Es un buen hábito nombrarlos para poder seguir fácilmente la compilación.
+- Con diferentes opciones podemos controlar su comportamiento globalmente (en un chunk inicial), o individualmente.  
+`echo = FALSE` no aparece el código, pero muestra los resultados en el informe final.  
+`error = TRUE` hace que la compilación continúe aunque el código devuelva un error. 
+
+## Elementos básicos de un archivo *.Rmd* 
+El código en linea se inserta en el texto mediante una tilde inicial seguida del lenguaje correspondiente y se cierra con una tilde final. Por ejemplo, si escribimos en nuestro documento:  
+
+<center> El ownCloud lleva `` `r "\u0060r X+1\u0060"` `` archivos borrados </center><br/>
+Veremos:<br/>
+<center> El ownCloud lleva 200 archivos borrados </center><br/>
+Con la ventaja de que ese valor se actualiza automaticamente si modificamos el código que genera a *X* 
+
+## Generación del documento
+Es lo que se denomina *compilación*. Eso podemos hacerlo:  
+- Usando el botón de *Knit*, que lo que hace básicamente es correr la función *rmarkdown::render()* en una nueva sesión de R. 
+
+<center><span style="color:red">**ATENCIÓN**</span> esto implica que ninguno de los objetos de nuestra sesión actual (por ej. los que creamos a través de la consola), van a estar disponibles en la nueva sesión. Si bien a veces puede resultar frustrante es parte de la buśqueda de <span style="color:green">**reproducibilidad**</span></center><br/>
+- Usando la función *rmarkdown::render(PATH/ARCHIVO.Rmd)*, se ejecuta el comando bajo la sesión actual y por lo tanto de esta manera sí incluímos los objetos creados por fuera del archivo .Rmd.
+
+## Manos a la obra!
+
+
+## Bibliografía y recursos
+- [R Markdown: The Definitive Guide. Yihui Xie, J. J. Allaire, Garrett Grolemund (2019-06-03)](https://bookdown.org/yihui/rmarkdown/)
+- [R Markdown Reference Guide](https://www.rstudio.com/wp-content/uploads/2015/03/rmarkdown-reference.pdf)
+- [R Markdown Cheat Sheet](https://github.com/rstudio/cheatsheets/raw/master/rmarkdown-2.0.pdf)

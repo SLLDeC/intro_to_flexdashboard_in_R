@@ -1,0 +1,75 @@
+---
+title: 'Actividad 1: Introducción a R Markdown'
+output: html_document
+
+---
+
+## 1. Metadata
+Como su nombre lo indica es algo que está por fuera del contenido del documento. En este caso tenemos un encabezado muy sencillo donde definimos el título y nombre del archivo y el tipo de output como *HTML*.  
+-A) Agregar una tabla de contenidos.
+
+## 2. Setup general del código
+El primer chunk se usa para definir la configuración global del comportamiento de los chunks incluidos en el documento.
+En este ejemplo además cargamos algunas librerías de uso frecuente. 
+Como dijimos previamente es un buen hábito nombrar cada chunk, en este caso lo llamamos *setup*.  
+-B) ¿Cómo podemos prevenir que aparezcan los mensajes de *tidyverse* y *agiseR*?  
+-C) ¿Qué pasa si cambiamos `include=TRUE` por `FALSE`?
+
+```{r, include=TRUE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	warning = FALSE
+)
+
+# require(knitr)
+# opts_knit$set(root.dir = normalizePath('desarrollo_profesional/tableros'))
+
+library(tidyverse)
+```
+
+## 3. Importación de datos
+Por prolijidad podemos dejar reservado un chunk a la carga de las bases de datos que se van a utilizar.  
+-C) ¿Qué comportamiento controla `echo=TRUE`?
+
+```{r carga datos, echo=TRUE}
+pacientes_muestra <- read.csv('../../datasets/pacientes_muestra.csv')
+efectores <- read.csv('../../datasets/efectores.csv')
+consultas_muestra <- read.csv('../../datasets/consultas_muestra.csv')
+```
+
+## 4. Incluyendo salidas
+
+### Tablas
+Dado el siguiente código:  
+-D) ¿Cómo podemos hacer para incluir en el reporte únicamente la tabla generada?
+```{r tabla_comuna, echo=TRUE}
+tabla_departamento <- pacientes_muestra %>%
+  filter(str_detect(departamento,'comuna')) %>% 
+  count(departamento) %>%
+  arrange(desc(n))
+
+tabla_menos_fea <- tabla_departamento %>% 
+  rename(Personas=n,Comuna=departamento) %>% 
+  mutate(Comuna = parse_number(Comuna)) %>% 
+knitr::kable(caption = 'Total de pacientes registrados por comuna',padding=0)
+```
+
+### Código en línea
+Podemos incluir variables en el texto de la siguiente manera:  
+Las comunas con mayor y menor cantidad de pacientes registrados son la `r tabla_departamento$departamento[tabla_departamento$n==max(tabla_departamento$n)]` y la  `r tabla_departamento$departamento[tabla_departamento$n==min(tabla_departamento$n)]`, respectivamente.  
+
+-E) Reportar el total de personas registradas por sexo.
+
+### Mapas
+-F) ¿Cómo podemos subir de jerarquía la sección *Mapas*?  
+
+Este es un ejemplo de mapa con leaflet
+```{r mapa-AGISE, out.width='90%'}
+mapa_agise <- leaflet::leaflet() %>%
+  leaflet::addTiles() %>%
+  leaflet::setView(-58.421414, -34.606493,  zoom = 17) %>%
+  leaflet::addPopups(-58.421414, -34.606493,  'Usted está aquí: <b>AGISE</b>')
+mapa_agise
+```
+
+Nota: Si incluimos objetos dinámicos (htmlwidgets: mapas, gráficos interactivos) en un documento con formato estático (por ej. pdf), necesitamos otros paquetes que hacen una captura de pantalla para poder incluirla en el documento como una imagen.

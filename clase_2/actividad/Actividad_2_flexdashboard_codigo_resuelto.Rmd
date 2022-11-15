@@ -1,0 +1,293 @@
+---
+title: "Tablero"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: cerulean
+    navbar:
+      - { title: "Mesa de Ayuda Salud (Informática)", href: "http://mesadeayudasalud.msgc.gcba/", align: right, icon: ion-chatbox-working}
+---     
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+library(flexdashboard)
+library(tidyverse)
+```
+
+```{r carga datos}
+pacientes_muestra <- read.csv('../../datasets/pacientes_muestra.csv')
+efectores <- read.csv('../../datasets/efectores.csv')
+consultas_muestra <- read.csv('../../datasets/consultas_muestra.csv')
+```
+
+```{r tabla_comunas}
+tabla_departamento <- pacientes_muestra %>%
+  filter(str_detect(departamento,'comuna')) %>% 
+  count(departamento) %>%
+  arrange(desc(n))
+
+tabla_menos_fea <- tabla_departamento %>% 
+  rename(Personas=n,Comuna=departamento) %>% 
+  mutate(Comuna = parse_number(Comuna)) %>% 
+  knitr::kable(align='c')
+```
+
+```{r mapa_AGISE, out.width='90%'}
+mapa_agise <- leaflet::leaflet() %>%
+  leaflet::addTiles() %>%
+  leaflet::setView(-58.421414, -34.606493,  zoom = 17) %>%
+  leaflet::addPopups(-58.421414, -34.606493,  'Usted está aquí: <b>AGISE</b>')
+```
+
+```{r piramide_poblacional}
+edad_cat_cat <- c('90-100','85-89','80-84','75-79','70-74','65-69','60-64','55-59','50-54','45-49','40-44','35-39','30-34','25-29','20-24','15-19','10-14','5-9','0-4')
+
+poblacion <- pacientes_muestra %>% 
+             filter(str_detect(departamento,'comuna')) %>% 
+             mutate(fecha_nacimiento = as.Date(fecha_nacimiento, format="%d/%m/%Y"),
+                    edad = round(as.numeric(Sys.Date()- fecha_nacimiento)/365.25),
+                    edad_cat_order = cut(edad,
+                                         breaks = c(seq(0,90,5),100),
+                                         include.lowest = T,
+                                         labels = rev(edad_cat_cat))) %>%
+             count(edad_cat_order,genero) %>%
+             na.omit() %>% 
+             spread(genero,n,sep='_') %>% 
+             mutate(genero_M=genero_M*(-1)) %>% 
+             arrange(desc(edad_cat_order))
+
+piramide <- highcharter::highchart() %>%
+  highcharter::hc_chart(type = "bar") %>%
+  highcharter::hc_plotOptions(bar=list(stacking='normal')) %>%
+  highcharter::hc_title(text = "Población empadronada en CABA",
+                        align='left',
+                        style=list(fontSize= "16px")) %>%
+  highcharter::hc_subtitle(text = paste0("Total Varones: ",abs(sum(poblacion$genero_M))," | Total Mujeres:",sum(poblacion$genero_F)),
+                           align='left',
+                           style=list(fontSize= "16px")) %>%
+  highcharter::hc_xAxis(categories=unique(poblacion$edad_cat_order),
+                        title = list(text = "Edad")) %>%
+  highcharter::hc_yAxis(title=list(text= 'Población activa'),
+                        labels=list(formatter=htmlwidgets::JS("function () {
+                                                              return Math.abs(this.value)}"))) %>%
+  highcharter::hc_add_series(data = poblacion$genero_F,
+                             name = "Mujeres",
+                             color='#fcb783', #fcc69c
+                             legendIndex=2) %>%
+  highcharter::hc_add_series(data = poblacion$genero_M,
+                             name = "Varones",
+                             color='#fa8832', #'#41b5e9',
+                             legendIndex=1) %>%
+  highcharter::hc_tooltip(crosshairs = TRUE,
+                          borderWidth = 5,
+                          formatter=htmlwidgets::JS("function () {
+                                                    return 'Edad: ' + '<b>' + this.x + '</b><br/>' +
+                                                    this.series.name + ': ' + '<b>' + Math.abs(this.y) + '</b>'}")) %>%
+  highcharter::hc_legend(verticalAlign='top',
+                         floating= F) %>%
+  highcharter::hc_add_theme(highcharter::hc_theme_elementary())
+```
+
+```{r consultas_en_el_tiempo}
+consultas_tiempo <- consultas_muestra %>%
+  mutate(mes_ano_consulta_ts=highcharter::datetime_to_timestamp(zoo::as.Date(fecha_consulta, format="%d/%m/%Y"))) %>% 
+  left_join(select(efectores,id_efector,abreviatura)) %>% 
+  count(mes_ano_consulta_ts,abreviatura) 
+  
+consultas_tiempo_CeSACs <- consultas_tiempo %>% 
+    filter(str_detect(abreviatura,'CESAC')) 
+
+consultas_tiempo_Hospitales <- consultas_tiempo %>% 
+    filter(str_detect(abreviatura,'HOSP')) 
+
+consultas_tiempo_CeSACs_plot <-
+    highcharter::highchart() %>%
+    highcharter::hc_plotOptions(column = list(
+        stacking = "normal",
+        lineColor = "#ffffff",
+        lineWidth = 1,
+        marker = list(
+            lineWidth = 1,
+            lineColor = "#ffffff"
+        ))) %>%
+    highcharter::hc_title(text = "Total de consultas en CeSACs",
+             align= 'left') %>%
+    highcharter::hc_xAxis(type = 'datetime',title = list(text = "Periodo"),
+             labels=list(format='{value:%b-%Y}',
+                         style=list(fontSize= "9px"))) %>%
+    highcharter::hc_yAxis(title=list(text='Nro. consultas')) %>%
+    highcharter::hc_tooltip(crosshairs = TRUE,
+               backgroundColor = "#FFFFFF",
+               shared = TRUE,
+               borderWidth = 3) %>%
+    highcharter::hc_add_theme(highcharter::hc_theme_elementary()) %>% 
+    highcharter::hc_add_series(data=consultas_tiempo_CeSACs %>%
+                      select(x=mes_ano_consulta_ts,
+                             y=n),
+                  visible=T,
+                  type='line',
+                  fillOpacity=0.6,
+                  # color=paleta2[i],
+                  marker=list(enabled=FALSE))
+
+consultas_tiempo_Hospitales_plot <-
+    highcharter::highchart() %>%
+    highcharter::hc_plotOptions(column = list(
+        stacking = "normal",
+        lineColor = "#ffffff",
+        lineWidth = 1,
+        marker = list(
+            lineWidth = 1,
+            lineColor = "#ffffff"
+        ))) %>%
+    highcharter::hc_title(text = "Total de consultas en Hospitales",
+             align= 'left') %>%
+    highcharter::hc_xAxis(type = 'datetime',title = list(text = "Periodo"),
+             labels=list(format='{value:%b-%Y}',
+                         style=list(fontSize= "9px"))) %>%
+    highcharter::hc_yAxis(title=list(text='Nro. consultas')) %>%
+    highcharter::hc_tooltip(crosshairs = TRUE,
+               backgroundColor = "#FFFFFF",
+               shared = TRUE,
+               borderWidth = 3) %>%
+    highcharter::hc_add_theme(highcharter::hc_theme_elementary()) %>% 
+    highcharter::hc_add_series(data=consultas_tiempo_Hospitales %>%
+                      select(x=mes_ano_consulta_ts,
+                             y=n),
+                  visible=T,
+                  type='line',
+                  fillOpacity=0.6,
+                  # color=paleta2[i],
+                  marker=list(enabled=FALSE))
+```
+
+```{r consultas_por_efector}
+consultas_efector <- consultas_muestra %>%
+  left_join(select(efectores,id_efector,abreviatura)) %>% 
+  count(abreviatura) %>%
+  arrange(desc(n))
+
+consultas_efector_CeSACs <- consultas_efector %>% 
+  filter(str_detect(abreviatura,'CESAC'))
+
+consultas_efector_Hospitales<- consultas_efector %>% 
+  filter(str_detect(abreviatura,'HOSP'))
+
+consultas_efector_CeSACs_plot <-
+    highcharter::highchart() %>%
+    highcharter::hc_xAxis(categories = consultas_efector_CeSACs$abreviatura) %>%
+    highcharter::hc_yAxis(title = list(text = "Nro. de consultas")) %>%
+    highcharter::hc_title(text = "Total de consultas por CeSAC",align='left') %>%
+    highcharter::hc_chart(type = "bar") %>%
+    highcharter::hc_add_series(data=consultas_efector_CeSACs$n,
+                  name='Nro. de consultas',
+                  type='bar',
+                  dataLabels = list(enabled = TRUE),
+                  showInLegend=FALSE) %>%
+    highcharter::hc_add_theme(highcharter::hc_theme_elementary())
+
+consultas_efector_Hospitales_plot <-
+    highcharter::highchart() %>%
+    highcharter::hc_xAxis(categories = consultas_efector_Hospitales$abreviatura) %>%
+    highcharter::hc_yAxis(title = list(text = "Nro. de consultas")) %>%
+    highcharter::hc_title(text = "Total de consultas por hospital",align='left') %>%
+    highcharter::hc_chart(type = "bar") %>%
+    highcharter::hc_add_series(data=consultas_efector_Hospitales$n,
+                  name='Nro. de consultas',
+                  type='bar',
+                  dataLabels = list(enabled = TRUE),
+                  showInLegend=FALSE) %>%
+    highcharter::hc_add_theme(highcharter::hc_theme_elementary())
+```
+
+```{r origen_pacientes}
+pacientes_origen <- pacientes_muestra %>% 
+  filter(!is.na(departamento)) %>% 
+  mutate(origen = if_else(str_detect(departamento,'comuna'),'CABA','Otro')) %>% 
+  group_by(origen) %>% 
+  summarise(n=n()) %>% 
+  mutate(per = n / sum(n))
+por_pac_CABA <- round(pacientes_origen$per[pacientes_origen$origen=='CABA'],2)*100
+```
+
+Demografía
+===
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+  
+### Pirámide poblacional
+```{r piramide}
+piramide
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Cantidad de personas empadronadas por comuna
+```{r tabla}
+tabla_menos_fea
+```
+
+### Ubicación de AGISE
+```{r mapa}
+mapa_agise
+```
+
+
+CeSACs {data-navmenu="Consultas"}
+===
+
+Column {.tabset}
+---
+
+### En el tiempo
+```{r }
+consultas_tiempo_CeSACs_plot
+```
+
+### Por efector
+```{r }
+consultas_efector_CeSACs_plot
+```
+
+Column {data-width=300}
+---
+
+### Pacientes registrados con domicilio en CABA 
+```{r}
+valueBox(paste0(por_pac_CABA,'%'), 
+         icon = ifelse(por_pac_CABA < 85,"fa-pencil","fa-map-marker-alt"),
+         color = ifelse(por_pac_CABA < 85, "danger", "primary"),
+         href = 'https://www.youtube.com/watch?v=L3_5p50gFqM')
+```
+
+Hospitales {data-navmenu="Consultas"}
+===
+
+Column {.tabset}
+---
+
+### En el tiempo
+```{r }
+consultas_tiempo_Hospitales_plot
+```
+
+### Por efector
+```{r }
+consultas_efector_Hospitales_plot
+```
+
+Column {data-width=300}
+---
+
+### Pacientes registrados con domicilio en CABA 
+```{r}
+valueBox(paste0(por_pac_CABA,'%'), 
+         icon = ifelse(por_pac_CABA < 85,"fa-pencil","fa-map-marker-alt"),
+         color = ifelse(por_pac_CABA < 85, "danger", "primary"),
+         href = 'https://www.youtube.com/watch?v=L3_5p50gFqM')
+```
